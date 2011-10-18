@@ -55,9 +55,11 @@ Gnuplot.open do |gp|
     y = Array.new
     z = Array.new
 
-    placement.coordinates.each { |a| x.push(a.x.to_f) } 
-    placement.coordinates.each { |b| y.push(b.y.to_f) } 
-    placement.coordinates.each { |c| z.push(c.z.to_f) } 
+    placement.coordinates.each { |coordinate| 
+      x.push(coordinate.x.to_f) 
+      y.push(coordinate.y.to_f) 
+      z.push(coordinate.z.to_f) 
+    } 
 
     plot.data << Gnuplot::DataSet.new( [x, y, z] ) do |ds|
       ds.with = "p ls 1"
