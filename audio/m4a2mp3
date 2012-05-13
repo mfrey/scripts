@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# A bash scrip by Scott Klarr, http://www.scottklarr.com/topic/70/linux-m4a-to-mp3-converter-shell-script/
+
+# Script only works with non-lossless m4a files
+
+for i in *.m4a; do 
+  echo "Converting: ${i%.m4a}.mp3" 
+  faad -o - "$i" | lame - "${i%.m4a}.mp3" 
+done
