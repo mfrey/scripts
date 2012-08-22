@@ -5,6 +5,8 @@ import re
 import sys
 import argparse
 
+from collections import deque
+
 class Node:
   def __init__(self):    
     self.name = ""
@@ -21,20 +23,24 @@ class Packet:
     self.sequenceNumber = sequenceNumber
 
   def __str__(self):
-    return "source: "+ self.source +" Destination: "+ self.destination +" Seqnum: " + self.sequenceNumber;
+    return "source: "+ self.source + " destination: "+ self.destination + " sequence number: " + self.sequenceNumber;
   
   def __eq__(self,other):
     if(isinstance(other,Packet)):
       return ((other.sequenceNumber == self.sequenceNumber) and (other.source.name == self.source.name) and (other.destination.name == self.destination.name))
     else:
       return false;
-    
+
+#class PacketTrace:
+#  def __init__(self):    
+#    self.path = deque()
 
 class PacketTraceParser:
   def __init__(self):    
     self.nodes = {}
     self.tap = {}
     self.wlan = {}
+    self.paths = {}
 
   def readAddressFiles(self,directory):
     for root, subFolders, files in os.walk(directory):
@@ -95,15 +101,29 @@ class PacketTraceParser:
                     # get the hops
                     hops = currentLine.split(" ");
 
+                    # check if there is already an entry
+                    if packet not in self.paths:
+                      # add an empty deque to the yet to setup path list
+                      self.paths[packet] = deque();
+                    
+                    # access the path list
+                    path = self.paths[packet]
+                    # get the next node
+                    nextNode = self.wlan[(hops[0])[9:]]
+                    # get the previous node
+                    previousNode = self.wlan[(hops[1])[9:]]
+ 
+                    # we have to check if the previous and/or next hop are already in the path list
+                          
                   except KeyError:
                     # todo: think about a better exception handling
                     print "oops"
-
+              elif "Packet arrived" in line:
+                print "todo"
             logFile.close()
           except StopIteration:
             # todo: think about a smarter exception handling
             print "oops"
-
 
 
 t = PacketTraceParser()
