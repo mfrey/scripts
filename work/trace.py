@@ -61,6 +61,32 @@ class PacketTraceParser:
           # close the file
           adressFile.close()
 
+  def getSequenceNumber(self,string):
+    return (re.split("\\D+", string))[1]
+
+  def getAddresses(self,string):
+    addresses = string.split(" ")
+    # returns an array with two entries (first entry is the source address, second the destination address) 
+    return [(addresses[1])[9:], (addresses[0])[9:]]
+
+  def getNodesByWlanInterface(self,string):
+    hops = string.split(" ")
+    try:
+      # return an array containing (previous hop, next hop)
+      return [self.wlan[(hops[0])[9:]] , self.wlan[(hops[1])[9:]]]
+    except KeyError:
+      print "smart error handling" 
+      return []
+    
+  def getNodesByTapInterface(self,string):
+    hops = string.split(" ")
+    try:
+      # return an array containing (source, destination)
+      return [self.tap[(hops[1])[9:]] , self.tap[(hops[0])[9:]]]
+    except KeyError:
+      print "smart error handling" 
+      return []
+
   def readLogFiles(self,directory):
     for root, subFolders, files in os.walk(directory):
       for file in files:
@@ -73,24 +99,17 @@ class PacketTraceParser:
                 if "data" in currentLine:
                   # determine the sequence number of the data packet, the 
                   # return type is a array (where the second entry should contain the number)
-                  sequenceNumber = (re.split("\\D+", currentLine))[1];
+                  sequenceNumber = self.getSequenceNumber(currentLine)
                   # todo: check (skip the ethernet line)
                   logFile.next();
                   # at the processing buffer
-                  currentLine = logFile.next();
+                  currentLine = logFile.next()
                   # clean up the mess
-                  currentLine = re.sub("\\.|p.=|\\t", "", currentLine);
-                  # get the addresses
-                  addresses = currentLine.split(" ");
-                  # get the destination address
-                  destination = (addresses[0])[9:]
-                  # get the source address
-                  source = (addresses[1])[9:]
+                  currentLine = re.sub("\\.|p.=|\\t", "", currentLine)
+
                   try:
-                    # get the corresponding source node 
-                    sourceNode = self.tap[source];
-                    # get the corresponding destination node 
-                    destinationNode = self.tap[destination]; 
+                    # get source and destination node 
+                    sourceNode, destinationNode = self.getNodesByTapInterface(currentLine)
                     # create a packet
                     packet = Packet(sourceNode, destinationNode, sequenceNumber)
 
@@ -98,8 +117,8 @@ class PacketTraceParser:
                     currentLine = logFile.next();
                     # current line should now the previous and next hop line
                     currentLine = re.sub("\\.|.h=|\\t", "", currentLine);
-                    # get the hops
-                    hops = currentLine.split(" ");
+                    # get the next and previous node
+                    nextNode, previousNode = getNodesByWlanInterface(currentLine);
 
                     # check if there is already an entry
                     if packet not in self.paths:
@@ -108,10 +127,6 @@ class PacketTraceParser:
                     
                     # access the path list
                     path = self.paths[packet]
-                    # get the next node
-                    nextNode = self.wlan[(hops[0])[9:]]
-                    # get the previous node
-                    previousNode = self.wlan[(hops[1])[9:]]
  
                     # we have to check if the previous and/or next hop are already in the path list
                           
@@ -119,7 +134,21 @@ class PacketTraceParser:
                     # todo: think about a better exception handling
                     print "oops"
               elif "Packet arrived" in line:
-                print "todo"
+                sequenceNumber = self.getSequenceNumber(currentLine)
+                # todo: check why we should skip a line
+                currentLine = logFile.next();
+                # at the processing buffer line
+                currentLine = logFile.next();
+                # get source and destination node 
+                sourceNode, destinationNode = self.getNodesByTapInterface(currentLine)
+                # create a packet
+                packet = Packet(sourceNode, destinationNode, sequenceNumber)
+                # clean up the mess
+                currentLine = re.sub("\\.|p.=|\\t", "", currentLine)
+
+                # get the next and previous node
+                # nextNode, previousNode = getNodesByWlanInterface(currentLine);
+
             logFile.close()
           except StopIteration:
             # todo: think about a smarter exception handling
