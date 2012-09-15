@@ -30,7 +30,7 @@ boxPlotDataFrame <- data.frame();
 # iterate over every file in the directory
 for(i in 1:length(files)){
   # read the file into a table
-  packets <- read.table(file=files[i], header=FALSE);
+  packets <- read.table(file=files[i], head=FALSE, sep=",");
   # create the headlines for the table
   colnames(packets) <- c("transmitted", "received", "packet loss", "time");
   # transform table into a data.frame containing the packet losses

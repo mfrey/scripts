@@ -7,6 +7,10 @@ import argparse
 
 from collections import deque
 
+import logging 
+
+logging.basicConfig(filename='example.log',level=logging.DEBUG)
+
 class Node:
   def __init__(self):    
     self.name = ""
@@ -14,7 +18,7 @@ class Node:
     self.tapInterface = ""
 
   def __str__(self):
-    return "name: "+ self.name +" wlan0: "+ self.wlanInterface +" tap0: " + self.tapInterface;
+    return "name:  "+ self.name +" wlan0: "+ self.wlanInterface +" tap0:  " + self.tapInterface;
 
 class Packet:
   def __init__(self, source, destination, sequenceNumber):    
@@ -31,6 +35,9 @@ class Packet:
     else:
       return false;
 
+  def __hash__(self):
+	return hash(repr(self))
+
 #class PacketTrace:
 #  def __init__(self):    
 #    self.path = deque()
@@ -42,24 +49,30 @@ class PacketTraceParser:
     self.wlan = {}
     self.paths = {}
 
-  def readAddressFiles(self,directory):
+  def readAddressFiles(self, directory):
     for root, subFolders, files in os.walk(directory):
       for file in files:
         if file.endswith('address'):
-          print file
-          addressFile = open(directory + "/" + file, "r")
-          node = Node()
-          node.name = addressFile.readline()
-          node.wlanInterface = addressFile.readline()
-          node.tapInterface = addressFile.readline()
-          # add node to the node hash map
-          self.nodes[node.name] = node
-          # add node to the tap hash map
-          self.tap[node.tapInterface] = node
-          # add node to the wlan hash map
-          self.wlan[node.wlanInterface] = node
-          # close the file
-          adressFile.close()
+          try:
+            fullpath = os.path.join(root, file)
+            addressFile = open(fullpath, "r")
+            node = Node()
+            node.name = addressFile.readline().rstrip("\n")
+            node.wlanInterface = addressFile.readline().rstrip("\n")
+            node.tapInterface = addressFile.readline().rstrip("\n")
+
+            logging.debug("add node " + "\n " + str(node))
+
+            # add node to the node hash map
+            self.nodes[node.name] = node
+            # add node to the tap hash map
+            self.tap[node.tapInterface] = node
+            # add node to the wlan hash map
+            self.wlan[node.wlanInterface] = node
+            # close the file
+            addressFile.close()
+          except KeyError:
+			print ""
 
   def getSequenceNumber(self,string):
     return (re.split("\\D+", string))[1]
@@ -70,28 +83,30 @@ class PacketTraceParser:
     return [(addresses[1])[9:], (addresses[0])[9:]]
 
   def getNodesByWlanInterface(self,string):
-    hops = string.split(" ")
+    hops = string.rstrip("\n").split(" ")
     try:
       # return an array containing (previous hop, next hop)
-      return [self.wlan[(hops[0])[9:]] , self.wlan[(hops[1])[9:]]]
+      return [self.wlan[hops[0]] , self.wlan[hops[1]]]
     except KeyError:
       print "smart error handling" 
       return []
     
-  def getNodesByTapInterface(self,string):
-    hops = string.split(" ")
+  def getNodesByTapInterface(self, string): 
+    hops = string.rstrip("\n").split(" ")
     try:
       # return an array containing (source, destination)
-      return [self.tap[(hops[1])[9:]] , self.tap[(hops[0])[9:]]]
+      #return [self.tap[(hops[1])[9:]] , self.tap[(hops[0])[9:]]]
+      return [self.tap[hops[1]] , self.tap[hops[0]]]
     except KeyError:
-      print "smart error handling" 
+      print "smart error handling ", string
       return []
 
   def readLogFiles(self,directory):
     for root, subFolders, files in os.walk(directory):
       for file in files:
         if file.endswith('log'):
-          logFile = open(directory + "/" + file, "r")
+          fullpath = os.path.join(root, file)
+          logFile = open(fullpath, "r")
           try: 
             for line in logFile:
               if line == "Beginning full info dump.\n":
@@ -109,7 +124,7 @@ class PacketTraceParser:
 
                   try:
                     # get source and destination node 
-                    sourceNode, destinationNode = self.getNodesByTapInterface(currentLine)
+                    sourceNode, destinationNode = self.getNodesByWlanInterface(currentLine)
                     # create a packet
                     packet = Packet(sourceNode, destinationNode, sequenceNumber)
 
@@ -118,7 +133,7 @@ class PacketTraceParser:
                     # current line should now the previous and next hop line
                     currentLine = re.sub("\\.|.h=|\\t", "", currentLine);
                     # get the next and previous node
-                    nextNode, previousNode = getNodesByWlanInterface(currentLine);
+                    nextNode, previousNode = self.getNodesByTapInterface(currentLine);
 
                     # check if there is already an entry
                     if packet not in self.paths:
@@ -139,12 +154,12 @@ class PacketTraceParser:
                 currentLine = logFile.next();
                 # at the processing buffer line
                 currentLine = logFile.next();
-                # get source and destination node 
-                sourceNode, destinationNode = self.getNodesByTapInterface(currentLine)
-                # create a packet
-                packet = Packet(sourceNode, destinationNode, sequenceNumber)
                 # clean up the mess
                 currentLine = re.sub("\\.|p.=|\\t", "", currentLine)
+                # get source and destination node 
+                sourceNode, destinationNode = self.getNodesByWlanInterface(currentLine)
+                # create a packet
+                packet = Packet(sourceNode, destinationNode, sequenceNumber)
 
                 # get the next and previous node
                 # nextNode, previousNode = getNodesByWlanInterface(currentLine);
@@ -154,13 +169,20 @@ class PacketTraceParser:
             # todo: think about a smarter exception handling
             print "oops"
 
+def main():
+  parser = argparse.ArgumentParser(description='analyze ARA packet traces')
+  parser.add_argument('-a', dest='address_files_location', type=str, default="", action='store', help='location of the address files')
+  parser.add_argument('-l', dest='log_files_location', type=str, default="", action='store', help='location of the log files')
 
-t = PacketTraceParser()
-#t.readAddressFiles("demo")
-#t.readLogFiles("test")
-t.readLogFiles("test2")
+  results = parser.parse_args()
 
-#parser = argparse.ArgumentParser(description='analyze ARA packet traces')
-#parser.add_argument('string', metavar='A', type=string, nargs='+', help='the location of the address files')
-#parser.add_argument('string', metavar='L', type=string, nargs='+', help='the location of the log files')
+  log_files = results.log_files_location
+  address_files = results.address_files_location
+
+  t = PacketTraceParser()
+  t.readAddressFiles(address_files)
+  t.readLogFiles(log_files)
+
+if __name__ == "__main__":
+  main()
 
