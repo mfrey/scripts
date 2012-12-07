@@ -31,6 +31,12 @@ class Packet:
     else:
       return false;
 
+  def __key(self):
+    return (self.source, self.destination, self.sequenceNumber)
+
+  def __hash__(self):
+    return hash(self.__key())
+
 #class PacketTrace:
 #  def __init__(self):    
 #    self.path = deque()
@@ -46,12 +52,11 @@ class PacketTraceParser:
     for root, subFolders, files in os.walk(directory):
       for file in files:
         if file.endswith('address'):
-          print file
           addressFile = open(directory + "/" + file, "r")
           node = Node()
-          node.name = addressFile.readline()
-          node.wlanInterface = addressFile.readline()
-          node.tapInterface = addressFile.readline()
+          node.name = addressFile.readline().rstrip()
+          node.wlanInterface = addressFile.readline().rstrip()
+          node.tapInterface = addressFile.readline().rstrip()
           # add node to the node hash map
           self.nodes[node.name] = node
           # add node to the tap hash map
@@ -59,7 +64,7 @@ class PacketTraceParser:
           # add node to the wlan hash map
           self.wlan[node.wlanInterface] = node
           # close the file
-          adressFile.close()
+          addressFile.close()
 
   def getSequenceNumber(self,string):
     return (re.split("\\D+", string))[1]
@@ -73,7 +78,7 @@ class PacketTraceParser:
     hops = string.split(" ")
     try:
       # return an array containing (previous hop, next hop)
-      return [self.wlan[(hops[0])[9:]] , self.wlan[(hops[1])[9:]]]
+      return [self.wlan[(hops[0])] , self.wlan[(hops[1])]]
     except KeyError:
       print "smart error handling" 
       return []
@@ -82,7 +87,7 @@ class PacketTraceParser:
     hops = string.split(" ")
     try:
       # return an array containing (source, destination)
-      return [self.tap[(hops[1])[9:]] , self.tap[(hops[0])[9:]]]
+      return [self.tap[(hops[1])] , self.tap[(hops[0])]]
     except KeyError:
       print "smart error handling" 
       return []
@@ -109,7 +114,7 @@ class PacketTraceParser:
 
                   try:
                     # get source and destination node 
-                    sourceNode, destinationNode = self.getNodesByTapInterface(currentLine)
+                    sourceNode, destinationNode = self.getNodesByWlanInterface(currentLine.rstrip())
                     # create a packet
                     packet = Packet(sourceNode, destinationNode, sequenceNumber)
 
@@ -118,7 +123,7 @@ class PacketTraceParser:
                     # current line should now the previous and next hop line
                     currentLine = re.sub("\\.|.h=|\\t", "", currentLine);
                     # get the next and previous node
-                    nextNode, previousNode = getNodesByWlanInterface(currentLine);
+                    nextNode, previousNode = self.getNodesByTapInterface(currentLine.rstrip());
 
                     # check if there is already an entry
                     if packet not in self.paths:
@@ -134,13 +139,14 @@ class PacketTraceParser:
                     # todo: think about a better exception handling
                     print "oops"
               elif "Packet arrived" in line:
-                sequenceNumber = self.getSequenceNumber(currentLine)
+                sequenceNumber = self.getSequenceNumber(line)
                 # todo: check why we should skip a line
                 currentLine = logFile.next();
                 # at the processing buffer line
                 currentLine = logFile.next();
+                currentLine = re.sub("\\.|p.=|\\t", "", currentLine);
                 # get source and destination node 
-                sourceNode, destinationNode = self.getNodesByTapInterface(currentLine)
+                sourceNode, destinationNode = self.getNodesByWlanInterface(currentLine.rstrip())
                 # create a packet
                 packet = Packet(sourceNode, destinationNode, sequenceNumber)
                 # clean up the mess
@@ -154,13 +160,16 @@ class PacketTraceParser:
             # todo: think about a smarter exception handling
             print "oops"
 
+def main():
+  t = PacketTraceParser()
+  t.readAddressFiles("grid")
+  #print t.tap.keys()
+  #t.readLogFiles("test")
+  t.readLogFiles("log")
 
-t = PacketTraceParser()
-#t.readAddressFiles("demo")
-#t.readLogFiles("test")
-t.readLogFiles("test2")
+  #parser = argparse.ArgumentParser(description='analyze ARA packet traces')
+  #parser.add_argument('string', metavar='A', type=string, nargs='+', help='the location of the address files')
+  #parser.add_argument('string', metavar='L', type=string, nargs='+', help='the location of the log files')
 
-#parser = argparse.ArgumentParser(description='analyze ARA packet traces')
-#parser.add_argument('string', metavar='A', type=string, nargs='+', help='the location of the address files')
-#parser.add_argument('string', metavar='L', type=string, nargs='+', help='the location of the log files')
-
+if __name__ == "__main__":
+  main()
