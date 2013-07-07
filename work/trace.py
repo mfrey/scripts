@@ -37,6 +37,8 @@ class Packet:
 
   def __hash__(self):
 	return hash(repr(self))
+  def __key(self):
+    return (self.source, self.destination, self.sequenceNumber)
 
 #class PacketTrace:
 #  def __init__(self):    
@@ -149,7 +151,7 @@ class PacketTraceParser:
                     # todo: think about a better exception handling
                     print "oops"
               elif "Packet arrived" in line:
-                sequenceNumber = self.getSequenceNumber(currentLine)
+                sequenceNumber = self.getSequenceNumber(line)
                 # todo: check why we should skip a line
                 currentLine = logFile.next();
                 # at the processing buffer line
@@ -191,4 +193,3 @@ def main():
 
 if __name__ == "__main__":
   main()
-
