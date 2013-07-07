@@ -169,6 +169,12 @@ class PacketTraceParser:
             # todo: think about a smarter exception handling
             print "oops"
 
+  def evaluate(self):
+	for packet in self.paths.keys():
+      logging.debug("get path for packet " + str(packet))
+      logging.debug("nodes on the path are " + str(packet))
+
+
 def main():
   parser = argparse.ArgumentParser(description='analyze ARA packet traces')
   parser.add_argument('-a', dest='address_files_location', type=str, default="", action='store', help='location of the address files')
