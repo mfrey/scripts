@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3.4
 
 import os
 import re
@@ -6,8 +6,8 @@ import time
 import pprint
 import argparse
 import simplejson
-
-from urllib2 import urlopen, URLError, HTTPError, Request
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 
 PAGESIZE = 50  
 
@@ -38,10 +38,10 @@ class Tumblr:
            results = simplejson.loads(match.group(1))
            return results['posts-total']
 
-        except HTTPError, e:
-            print e.code
-        except URLError, e:
-            print e.args
+        except HTTPError as e:
+            print((e.code))
+        except URLError as e:
+            print((e.args))
 
         return -1
 
@@ -53,19 +53,19 @@ class Tumblr:
                 self._download(post)
 
     def _download(self, post):
-	savepath = self.location + '/' + os.path.basename(post['photo-url-1280'])
+        savepath = self.location + '/' + os.path.basename(post['photo-url-1280'])
 
         try:
             url = Request(post['photo-url-1280'])
             request  = urlopen(url)
             with open(savepath, 'wb') as file:
                 file.write(request.read())
-        except HTTPError, e:
-            print e.code
-        except URLError, e:
-            print e.args
+        except HTTPError as e:
+            print((e.code))
+        except URLError as e:
+            print((e.args))
         except ValueError:
-            print ""
+            print("")
 
 
 class TumblrIterator:
@@ -80,7 +80,7 @@ class TumblrIterator:
     def __iter__(self):
        return self
 
-    def next(self):
+    def __next__(self):
         if not self.results or (self.index == len(self.results['posts'])):
             self.start += self.index
             self.index = 0
