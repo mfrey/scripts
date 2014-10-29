@@ -1,5 +1,6 @@
 #!/usr/bin/env python2.7
 
+import sys
 import numpy as np
 
 import matplotlib
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 class CastaliaResultParser:
     def __init__(self):
         print("start it")
+        self.results = {} 
 
     def read(self, filename):
         results = {} 
@@ -55,7 +57,73 @@ class CastaliaResultParser:
 
         return (x_list, y_list)
 
+
+    def _parse_line(self, line):
+        # let's split the line by '|'
+        data = line.split('|')
+        # well, it's actual data and not a header
+        if len(data) > 1:
+            # let's filter empty elements and newlines from the list
+            data = [element for element in data if len(element) > 0 and element != '\n']
+
+            if data[0] != ' ':
+                # let's check if we have multiple parameters
+                parameters = data.pop(0).strip().split(',')
+                # get the keys
+                parameters = [parameter.split('=')[1] for parameter in parameters]
+                # our future dict key
+                key = ','.join(parameters)
+
+                if key not in self.results.keys():
+                    self.results[key] = []
+
+                for value in data:
+                    self.results[key].append(float(value))
+
+
     def read_breakdown_packets(self, filename):
+        with open(filename, "r") as filehandle:
+            for line in filehandle:
+                self._parse_line(line)
+
+    def plot_breakdown_packets(self):
+        data = {}
+
+        # prepare the data
+        for key in self.results.keys():
+            payload, rate, node = key.split(',')
+
+            if payload not in data.keys():
+                data[payload] = {}      
+                   
+            if node not in data[payload].keys():
+                data[payload][node] = {}
+
+            if rate not in data[payload][node].keys():
+                data[payload][node][rate] = []
+
+            data[payload][node][rate] = self.results[key]
+
+        print("Generating bar plots for packet breakdown: ")
+        # let's generate plots
+        for payload in data.keys():
+            for node in data[payload].keys():
+                rates = [] 
+                failed = []
+                success = []
+
+                for rate in sorted(data[payload][node],key=int):
+                    rates.append(float(rate))
+                    failed.append(data[payload][node][rate][0])
+                    success.append(data[payload][node][rate][1])
+
+                sys.stdout.write('.')
+                title = "Packet Breakdown (#Nodes: " + node + " Payload: " + payload + " Bytes)" 
+                self.generate_bar_plot("packets_breakdown_" + payload + "_" + node + ".png", title, rates, [failed, success], "rate", "packets", ['failed','success'])
+        print("")
+
+
+    def _read_breakdown_packets(self, filename):
         rates = [] 
         failed = []
         success = []
@@ -105,22 +173,28 @@ class CastaliaResultParser:
 
     
     def generate_bar_plot(self, filename, title, xdata, ydata, xlabel, ylabel, labels): 
-        figure = plt.figure()
+        figure, axis = plt.subplots()
+
+        index = np.arange(xdata[-1])
+        width = 0.5
+
         bar_widths = -1
 
         if bar_widths > 0:
-            plt.bar(xdata, ydata, bar_widths)
+            axis.bar(index, ydata, bar_widths)
         else:
-            plt.bar(xdata, ydata[1], color="#990000")
-            plt.bar(xdata, ydata[0], color="#003366")
+            axis.bar(index, ydata[1], width, color="#990000")
+            axis.bar(index+width, ydata[0], width, color="#003366")
 
-        plt.ylabel(ylabel,va="center",ha="center")
-        plt.xlabel(xlabel)
-        plt.title(title)
-        plt.legend( (ydata[0], ydata[1]), (labels[0], labels[1]) )
+        axis.set_ylabel(ylabel)
+        axis.set_xlabel(xlabel)
 
+        #axis.set_xticks(index + width)
 
-        plt.grid(axis="y")
+        axis.set_title(title)
+        #axis.legend((ydata[0][0], ydata[1][0]), (labels[0], labels[1]) )
+        axis.grid(axis="y")
+
         plt.savefig(filename)
         plt.close()
 
@@ -142,14 +216,16 @@ def main():
     #results = parser.read("latency.txt")
     #parser.prepare_line_plot("latency.png", "Application Level Latency", "offset", "latency [ms]", results)
 
-    results = parser.read_received_packets("packets.txt")
-    parser.generate_line_plot("packets_received.png", "Packets Received Per Node", [results[0]], [results[1]], "rate", "packets", ['test'])
+#    results = parser.read_received_packets("packets.txt")
+#    parser.generate_line_plot("packets_received.png", "Packets Received Per Node", [results[0]], [results[1]], "rate", "packets", ['test'])
 
-    results = parser.read_received_packets("reception_rate.txt")
-    parser.generate_line_plot("packets_reception_rate.png", "Packet Reception Rate", [results[0]], [results[1]], "rate", "packet reception rate", ['test'])
+ #   results = parser.read_received_packets("reception_rate.txt")
+ #   parser.generate_line_plot("packets_reception_rate.png", "Packet Reception Rate", [results[0]], [results[1]], "rate", "packet reception rate", ['test'])
     
-    results = parser.read_breakdown_packets("breakdown.txt")
-    parser.generate_bar_plot("packets_breakdown.png", "Packet Breakdown", results[0], [results[1],results[2]], "rate", "packets", ['test','foo'])
+    parser.read_breakdown_packets("breakdown.txt")
+    parser.plot_breakdown_packets()
+
+ #   parser.generate_bar_plot("packets_breakdown.png", "Packet Breakdown", results[0], [results[1],results[2]], "rate", "packets", ['test','foo'])
 
 if __name__ == "__main__":
     main()
