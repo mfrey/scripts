@@ -8,10 +8,14 @@ matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 
+class Castalia:
+    def __init__(self):
+        print("gna")
+
 class CastaliaResultParser:
     def __init__(self):
-        print("start it")
         self.results = {} 
+        self.nodes = [] 
 
     def read(self, filename):
         results = {} 
@@ -86,6 +90,7 @@ class CastaliaResultParser:
             for line in filehandle:
                 self._parse_line(line)
 
+
     def plot_breakdown_packets(self):
         data = {}
 
@@ -120,7 +125,57 @@ class CastaliaResultParser:
                 sys.stdout.write('.')
                 title = "Packet Breakdown (#Nodes: " + node + " Payload: " + payload + " Bytes)" 
                 self.generate_bar_plot("packets_breakdown_" + payload + "_" + node + ".png", title, rates, [failed, success], "rate", "packets", ['failed','success'])
-        print("")
+        print("\n")
+
+    def read_multiple_columns(self, filename):
+        with open(filename, "r") as filehandle:
+            for line in filehandle:
+                preamble = line.split('|')
+
+                if len(preamble) > 1:
+                    if preamble[0] == ' ':
+                       preamble.pop(0)
+                       self.nodes = [element.split('=')[-1].strip() for element in preamble]
+
+                self._parse_line(line)
+
+
+    def plot(self, title, filename, xlabel, ylabel):
+        data = {} 
+        nr_of_nodes = -1
+
+        for key in self.results.keys():
+            payload, rate = key.split(',')
+
+            if payload not in data.keys():
+                data[payload] = {}      
+
+            if rate not in data[payload].keys():
+                data[payload][rate] = {}
+
+            data[payload][rate] = self.results[key]
+            # store the number of nodes
+            nr_of_nodes = len(self.results[key])
+
+        print("Generating line plots for " + title + ": ")
+        # let's generate plots
+        for payload in data.keys():
+            # we create a new plot for each #nodes 
+            for current_node in range(nr_of_nodes):
+                rates = []  
+                reception_rate = []
+                sys.stdout.write('.')
+                for rate in sorted(data[payload], key=int):
+                    rates.append(rate)
+                    reception_rate.append(float(data[payload][rate][current_node]))
+
+                # create the title of the figure
+                current_title = title + "(#Nodes = " + self.nodes[current_node] + ", Payload = " + payload + ")" 
+                current_filename = filename + "-" + payload + "-" + self.nodes[current_node] + ".png"
+                # finally let's plot the reception rate 
+                self.generate_line_plot(current_filename, current_title, [rates], [reception_rate], xlabel, ylabel, [])
+        print("\n")
+
 
     def generate_line_plot(self, filename, title, xlist, ylist, xlabel, ylabel, labels): 
         figure = plt.figure()
@@ -194,16 +249,21 @@ def main():
     #results = parser.read("latency.txt")
     #parser.prepare_line_plot("latency.png", "Application Level Latency", "offset", "latency [ms]", results)
 
-#    results = parser.read_received_packets("packets.txt")
+    parser.read_multiple_columns("received.txt")
+    parser.plot("Received Packets", "received_packets", "rate", "packets")
+    parser.results = {}
+
 #    parser.generate_line_plot("packets_received.png", "Packets Received Per Node", [results[0]], [results[1]], "rate", "packets", ['test'])
 
  #   results = parser.read_received_packets("reception_rate.txt")
  #   parser.generate_line_plot("packets_reception_rate.png", "Packet Reception Rate", [results[0]], [results[1]], "rate", "packet reception rate", ['test'])
     
+    parser.read_multiple_columns("reception.txt")
+    parser.plot("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
+    parser.results = {}
+
     parser.read_breakdown_packets("breakdown.txt")
     parser.plot_breakdown_packets()
-
- #   parser.generate_bar_plot("packets_breakdown.png", "Packet Breakdown", results[0], [results[1],results[2]], "rate", "packets", ['test','foo'])
 
 if __name__ == "__main__":
     main()
