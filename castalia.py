@@ -17,51 +17,6 @@ class CastaliaResultParser:
         self.results = {} 
         self.nodes = [] 
 
-    def read(self, filename):
-        results = {} 
-        with open(filename, "r") as filehandle:
-            for line in filehandle:
-                # delimiter is apperantly a '|'
-                data = line.split('|')
-                # well, it's actual data and not a header
-                if len(data) > 1:
-                    # let's filter empty elements and newlines from the list
-                    data = [element for element in data if len(element) > 0 and element != '\n']
-                    x = data.pop(0).strip()
-
-                    if x.startswith("offset"): 
-                        x = float(x.split("=")[1])
-                        print x
-                        y = [float(element) for element in data]
-
-                        if x not in results.keys():
-                            results[x] = y
-        # print(results)
-        return results
-
-    def read_received_packets(self, filename):
-        x_list = [] 
-        y_list = []
-
-        with open(filename, "r") as filehandle:
-            for line in filehandle:
-                # delimiter is apperantly a '|'
-                data = line.split('|')
-                # well, it's actual data and not a header
-                if len(data) > 1:
-                    # let's filter empty elements and newlines from the list
-                    data = [element for element in data if len(element) > 1 and element != '\n']
-
-                    # get the rates
-                    if data[0].strip().startswith("rate"):
-                        x_list = [float(rates.split("=")[1]) for rates in data]
-                    # get the values
-                    else:
-                        y_list = [float(packets) for packets in data]
-
-        return (x_list, y_list)
-
-
     def _parse_line(self, line):
         # let's split the line by '|'
         data = line.split('|')
@@ -90,6 +45,39 @@ class CastaliaResultParser:
             for line in filehandle:
                 self._parse_line(line)
 
+
+    def plot_histogram(self):
+        data = {}
+
+        # prepare the data
+        for key in self.results.keys():
+            payload, rate, node = key.split(',')
+
+            if payload not in data.keys():
+                data[payload] = {}      
+                   
+            if node not in data[payload].keys():
+                data[payload][node] = {}
+
+            if rate not in data[payload][node].keys():
+                data[payload][node][rate] = []
+
+            data[payload][node][rate] = self.results[key]
+
+        print("Generating bar plots for packet breakdown: ")
+        # let's generate plots
+        for payload in data.keys():
+            for node in data[payload].keys():
+                for rate in sorted(data[payload][node],key=int):
+
+                    rates.append(float(rate))
+                    failed.append(data[payload][node][rate][0])
+                    success.append(data[payload][node][rate][1])
+
+                sys.stdout.write('.')
+                title = "Packet Breakdown (#Nodes: " + node + " Payload: " + payload + " Bytes)" 
+                self.generate_bar_plot("packets_breakdown_" + payload + "_" + node + ".png", title, rates, [failed, success], "rate", "packets", ['failed','success'])
+        print("\n")
 
     def plot_breakdown_packets(self):
         data = {}
@@ -145,6 +133,53 @@ class CastaliaResultParser:
         nr_of_nodes = -1
 
         for key in self.results.keys():
+            payload, rate, node = key.split(',')
+
+            if payload not in data.keys():
+                data[payload] = {}      
+
+            if node not in data[payload].keys():
+                data[payload][node] = {}
+
+            if rate not in data[payload][node].keys():
+                data[payload][node][rate] = []
+
+            data[payload][node][rate] = self.results[key]
+
+        print("Generating line plots for " + title + ": ")
+        # let's generate plots
+        for payload in data.keys():
+            for node in data[payload].keys():
+                rates = [] 
+                average = []
+                minimum = []
+                maximum = [] 
+
+                for rate in sorted(data[payload][node],key=int):
+                    rates.append(float(rate))
+                    average.append(data[payload][node][rate][0])
+                    minimum.append(data[payload][node][rate][1])
+                    maximum.append(data[payload][node][rate][2])
+
+                sys.stdout.write('.')
+                title = "Average Latency (#Nodes: " + node + " Payload: " + payload + " Bytes)" 
+                current_filename = filename + "-" + payload + "-" + node + ".png"
+                figure, axis = plt.subplots(1)
+                axis.plot(rates, average, lw=2, label=title, color='#003366')
+                axis.fill_between(rates, [i + j for i, j in zip(average, maximum)], [i - j for i, j in zip(average, minimum)], facecolor='#003366', alpha=0.5)
+                axis.set_title(title)
+                axis.set_xlabel(xlabel)
+                axis.set_ylabel(ylabel)
+                axis.grid()
+                figure.savefig(current_filename)
+                plt.close()
+                print("\n")
+
+    def plot_ext(self, title, filename, xlabel, ylabel):
+        data = {} 
+        nr_of_nodes = -1
+
+        for key in self.results.keys():
             payload, rate = key.split(',')
 
             if payload not in data.keys():
@@ -174,7 +209,6 @@ class CastaliaResultParser:
                 current_filename = filename + "-" + payload + "-" + self.nodes[current_node] + ".png"
                 # finally let's plot the reception rate 
                 self.generate_line_plot(current_filename, current_title, [rates], [reception_rate], xlabel, ylabel, [])
-        print("\n")
 
 
     def generate_line_plot(self, filename, title, xlist, ylist, xlabel, ylabel, labels): 
@@ -246,20 +280,20 @@ class CastaliaResultParser:
 
 def main():
     parser = CastaliaResultParser()
-    #results = parser.read("latency.txt")
-    #parser.prepare_line_plot("latency.png", "Application Level Latency", "offset", "latency [ms]", results)
-
-    parser.read_multiple_columns("received.txt")
-    parser.plot("Received Packets", "received_packets", "rate", "packets")
+    
+    parser.read_multiple_columns("application.txt")
+    parser.plot_histogram()
+    #parser.read_multiple_columns("latency.txt")
+    #parser.plot("Average Latency", "average_latency", "rate", "latency")
+    parser.nodes = []
     parser.results = {}
 
-#    parser.generate_line_plot("packets_received.png", "Packets Received Per Node", [results[0]], [results[1]], "rate", "packets", ['test'])
-
- #   results = parser.read_received_packets("reception_rate.txt")
- #   parser.generate_line_plot("packets_reception_rate.png", "Packet Reception Rate", [results[0]], [results[1]], "rate", "packet reception rate", ['test'])
+    parser.read_multiple_columns("received.txt")
+    parser.plot_ext("Received Packets", "received_packets", "rate", "packets")
+    parser.results = {}
     
     parser.read_multiple_columns("reception.txt")
-    parser.plot("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
+    parser.plot_ext("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
     parser.results = {}
 
     parser.read_breakdown_packets("breakdown.txt")
