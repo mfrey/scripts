@@ -122,28 +122,6 @@ class CastaliaResultParser:
                 self.generate_bar_plot("packets_breakdown_" + payload + "_" + node + ".png", title, rates, [failed, success], "rate", "packets", ['failed','success'])
         print("")
 
-
-    def _read_breakdown_packets(self, filename):
-        rates = [] 
-        failed = []
-        success = []
-
-        with open(filename, "r") as filehandle:
-            for line in filehandle:
-                # delimiter is apperantly a '|'
-                data = line.split('|')
-                # well, it's actual data and not a header
-                if len(data) > 1:
-                    # let's filter empty elements and newlines from the list
-                    data = [element for element in data if len(element) > 1 and element != '\n']
-                    # get the rates
-                    if data[0].strip().startswith("rate"):
-                       rates.append(float(data[0].split("=")[1]))
-                       failed.append(float(data[1]))
-                       success.append(float(data[2]))
-
-        return (rates, failed, success)
-
     def generate_line_plot(self, filename, title, xlist, ylist, xlabel, ylabel, labels): 
         figure = plt.figure()
         axis = figure.add_subplot(111)
