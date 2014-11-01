@@ -3,6 +3,8 @@
 import sys
 import numpy as np
 
+import itertools
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -45,44 +47,36 @@ class CastaliaResultParser:
             for line in filehandle:
                 self._parse_line(line)
 
+    def _get_bins(self, bins):
+        result = [element[1:-1].split(',') for element in bins]
+        result = itertools.chain(*result) 
+        result = [int(element) for element in result if element != "inf"]
+        result = sorted(list(set(result)), key=int)
+        return result
 
     def plot_histogram(self):
-        data = {}
+        data = self.prepare_data()
+        bins = self._get_bins(self.nodes)
 
-        # prepare the data
-        for key in self.results.keys():
-            payload, rate, node = key.split(',')
+        print("Generating histograms for application latency: ")
 
-            if payload not in data.keys():
-                data[payload] = {}      
-                   
-            if node not in data[payload].keys():
-                data[payload][node] = {}
-
-            if rate not in data[payload][node].keys():
-                data[payload][node][rate] = []
-
-            data[payload][node][rate] = self.results[key]
-
-        print("Generating bar plots for packet breakdown: ")
-        # let's generate plots
         for payload in data.keys():
             for node in data[payload].keys():
                 for rate in sorted(data[payload][node],key=int):
+                    sys.stdout.write('.')
+                    title = "Application Latency (#Nodes: " + node + " Payload: " + payload + " Bytes, Rate: " + rate + ")" 
+                    current_filename = "application_latency-" + payload + "_" + node + "_" + rate + ".png"
+                    hist_data = [float(element) for element in data[payload][node][rate]]
+                    figure, axis = plt.subplots(1)
+                    plt.hist(hist_data, bins, color='#003366')
+                    plt.title(title)
+                    figure.savefig(current_filename)
+                    plt.close()
 
-                    rates.append(float(rate))
-                    failed.append(data[payload][node][rate][0])
-                    success.append(data[payload][node][rate][1])
 
-                sys.stdout.write('.')
-                title = "Packet Breakdown (#Nodes: " + node + " Payload: " + payload + " Bytes)" 
-                self.generate_bar_plot("packets_breakdown_" + payload + "_" + node + ".png", title, rates, [failed, success], "rate", "packets", ['failed','success'])
-        print("\n")
-
-    def plot_breakdown_packets(self):
+    def prepare_data(self):
         data = {}
 
-        # prepare the data
         for key in self.results.keys():
             payload, rate, node = key.split(',')
 
@@ -97,6 +91,10 @@ class CastaliaResultParser:
 
             data[payload][node][rate] = self.results[key]
 
+        return data
+
+    def plot_breakdown_packets(self):
+        data = self.prepare_data()
         print("Generating bar plots for packet breakdown: ")
         # let's generate plots
         for payload in data.keys():
@@ -129,25 +127,11 @@ class CastaliaResultParser:
 
 
     def plot(self, title, filename, xlabel, ylabel):
-        data = {} 
+        data = self.prepare_data()
         nr_of_nodes = -1
 
-        for key in self.results.keys():
-            payload, rate, node = key.split(',')
-
-            if payload not in data.keys():
-                data[payload] = {}      
-
-            if node not in data[payload].keys():
-                data[payload][node] = {}
-
-            if rate not in data[payload][node].keys():
-                data[payload][node][rate] = []
-
-            data[payload][node][rate] = self.results[key]
-
         print("Generating line plots for " + title + ": ")
-        # let's generate plots
+
         for payload in data.keys():
             for node in data[payload].keys():
                 rates = [] 
@@ -166,7 +150,8 @@ class CastaliaResultParser:
                 current_filename = filename + "-" + payload + "-" + node + ".png"
                 figure, axis = plt.subplots(1)
                 axis.plot(rates, average, lw=2, label=title, color='#003366')
-                axis.fill_between(rates, [i + j for i, j in zip(average, maximum)], [i - j for i, j in zip(average, minimum)], facecolor='#003366', alpha=0.5)
+                #axis.fill_between(rates, [i + j for i, j in zip(average, maximum)], [i - j for i, j in zip(average, minimum)], facecolor='#003366', alpha=0.5)
+                axis.fill_between(rates, maximum, minimum, facecolor='#003366', alpha=0.5)
                 axis.set_title(title)
                 axis.set_xlabel(xlabel)
                 axis.set_ylabel(ylabel)
@@ -281,23 +266,30 @@ class CastaliaResultParser:
 def main():
     parser = CastaliaResultParser()
     
-    parser.read_multiple_columns("application.txt")
-    parser.plot_histogram()
-    #parser.read_multiple_columns("latency.txt")
-    #parser.plot("Average Latency", "average_latency", "rate", "latency")
+#    parser.read_multiple_columns("application.txt")
+#    parser.plot_histogram()
+#    parser.nodes = []
+#    parser.results = {}
+
+    parser.read_multiple_columns("latency.txt")
+    parser.plot("Average Latency", "average_latency", "rate", "latency")
     parser.nodes = []
     parser.results = {}
 
     parser.read_multiple_columns("received.txt")
     parser.plot_ext("Received Packets", "received_packets", "rate", "packets")
+    parser.nodes = []
     parser.results = {}
     
     parser.read_multiple_columns("reception.txt")
     parser.plot_ext("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
+    parser.nodes = []
     parser.results = {}
-
+#
     parser.read_breakdown_packets("breakdown.txt")
     parser.plot_breakdown_packets()
+    parser.nodes = []
+    parser.results = {}
 
 if __name__ == "__main__":
     main()
