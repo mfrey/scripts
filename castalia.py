@@ -72,6 +72,9 @@ class CastaliaResultParser:
 
 
     def read_breakdown_packets(self, filename):
+        self.results = {}
+        self.nodes = [] 
+
         with open(filename, "r") as filehandle:
             for line in filehandle:
                 self._parse_line(line)
@@ -143,6 +146,9 @@ class CastaliaResultParser:
         print("\n")
 
     def read_multiple_columns(self, filename):
+        self.results = {}
+        self.nodes = [] 
+
         with open(filename, "r") as filehandle:
             for line in filehandle:
                 preamble = line.split('|')
@@ -252,6 +258,11 @@ class CastaliaResultParser:
         axis.grid()
         figure.savefig(filename)
 
+    def write_result_file(self, pattern, input_file, output_file):
+        castalia = Castalia(pattern, input_file)
+        castalia.binary += "Results"
+        castalia.log_file_path = os.getcwd() + "/" + output_file
+        castalia.run()
     
     def generate_bar_plot(self, filename, title, xdata, ydata, xlabel, ylabel, labels): 
         figure, axis = plt.subplots()
@@ -310,36 +321,26 @@ def main():
          castalia.run()
 
      if arguments.plot == True:
-         castalia = Castalia("application level", arguments.omnetpp_ini)
-         castalia.binary += "Results"
-         castalia.log_file_path = os.getcwd() + "/application.txt"
-         castalia.run()
-         
          results = CastaliaResultParser()
+         results.write_result_file("application level", arguments.omnetpp_ini, "application.txt")
          results.read_multiple_columns("application.txt")
          results.plot_histogram()
-         results.nodes = []
-         results.results = {}
 
-#    parser.read_multiple_columns("latency.txt")
-#    parser.plot("Average Latency", "average_latency", "rate", "latency")
-#    parser.nodes = []
-#    parser.results = {}
-#
-#    parser.read_multiple_columns("received.txt")
-#    parser.plot_ext("Received Packets", "received_packets", "rate", "packets")
-#    parser.nodes = []
-#    parser.results = {}
-#    
-#    parser.read_multiple_columns("reception.txt")
-#    parser.plot_ext("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
-#    parser.nodes = []
-#    parser.results = {}
-##
-#    parser.read_breakdown_packets("breakdown.txt")
-#    parser.plot_breakdown_packets()
-#    parser.nodes = []
-#    parser.results = {}
+         results.write_result_file("average latency", arguments.omnetpp_ini, "latency.txt")
+         results.read_multiple_columns("latency.txt")
+         results.plot("Average Latency", "average_latency", "rate", "latency")
+
+         results.write_result_file("Packets received", arguments.omnetpp_ini, "received.txt")
+         results.read_multiple_columns("received.txt")
+         results.plot_ext("Received Packets", "received_packets", "rate", "packets")
+    
+         results.write_result_file("Packets reception rate", arguments.omnetpp_ini, "reception.txt")
+         results.read_multiple_columns("reception.txt")
+         results.plot_ext("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
+
+         results.write_result_file("Packet breakdown", arguments.omnetpp_ini, "breakdown.txt")
+         results.read_breakdown_packets("breakdown.txt")
+         results.plot_breakdown_packets()
 
 if __name__ == "__main__":
     main()
