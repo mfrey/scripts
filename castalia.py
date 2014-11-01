@@ -10,9 +10,31 @@ matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 
-class Castalia:
-    def __init__(self):
-        print("gna")
+import os
+from subprocess import call
+
+def run_simulation(args):
+    return Runner(*args).run()
+
+
+class Castalia(object):
+    def __init__(self, simulation, configuration, input_file="omnetpp.ini"):
+        self.castalia_installation = "/home/frey/Desktop/Projekte/work/sics/SemInt/Castalia-master/Castalia/"
+        self.binary = self.castalia_installation + '/bin/Castalia'
+        self.cwd = self.castalia_installation + '/Simulations/' + simulation + '/'
+        self.configuration = configuration
+        self.input_file = input_file
+
+        if os.path.exists(self.binary) == False:
+            raise Exception("The castalia binary could not be found at path" + self.binary)
+
+    def run(self):
+        environment = dict(os.environ)
+        logfile_path = self.cwd + '_' + self.configuration + '-Log.txt'
+
+        with open(logfile_path, 'w') as logfile:
+            call([self.binary, "-i", self.input_file, "-c", self.configuration], env=environment, cwd=self.cwd, stdout=logfile, stderr=logfile)
+
 
 class CastaliaResultParser:
     def __init__(self):
@@ -264,32 +286,34 @@ class CastaliaResultParser:
 
 
 def main():
-    parser = CastaliaResultParser()
+     castalia = Castalia("802154_interference", "GTS", "omnetpp.ini")
+     castalia.run()
+#    parser = CastaliaResultParser()
     
 #    parser.read_multiple_columns("application.txt")
 #    parser.plot_histogram()
 #    parser.nodes = []
 #    parser.results = {}
 
-    parser.read_multiple_columns("latency.txt")
-    parser.plot("Average Latency", "average_latency", "rate", "latency")
-    parser.nodes = []
-    parser.results = {}
-
-    parser.read_multiple_columns("received.txt")
-    parser.plot_ext("Received Packets", "received_packets", "rate", "packets")
-    parser.nodes = []
-    parser.results = {}
-    
-    parser.read_multiple_columns("reception.txt")
-    parser.plot_ext("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
-    parser.nodes = []
-    parser.results = {}
+#    parser.read_multiple_columns("latency.txt")
+#    parser.plot("Average Latency", "average_latency", "rate", "latency")
+#    parser.nodes = []
+#    parser.results = {}
 #
-    parser.read_breakdown_packets("breakdown.txt")
-    parser.plot_breakdown_packets()
-    parser.nodes = []
-    parser.results = {}
+#    parser.read_multiple_columns("received.txt")
+#    parser.plot_ext("Received Packets", "received_packets", "rate", "packets")
+#    parser.nodes = []
+#    parser.results = {}
+#    
+#    parser.read_multiple_columns("reception.txt")
+#    parser.plot_ext("Packet Reception Rate", "packet_reception_rate", "rate", "packet reception rate")
+#    parser.nodes = []
+#    parser.results = {}
+##
+#    parser.read_breakdown_packets("breakdown.txt")
+#    parser.plot_breakdown_packets()
+#    parser.nodes = []
+#    parser.results = {}
 
 if __name__ == "__main__":
     main()
