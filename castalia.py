@@ -3,6 +3,7 @@
 import sys
 import numpy as np
 
+import argparse
 import itertools
 
 import matplotlib
@@ -18,22 +19,28 @@ def run_simulation(args):
 
 
 class Castalia(object):
-    def __init__(self, simulation, configuration, input_file="omnetpp.ini"):
+    def __init__(self, configuration, input_file="omnetpp.ini"):
         self.castalia_installation = "/home/frey/Desktop/Projekte/work/sics/SemInt/Castalia-master/Castalia/"
         self.binary = self.castalia_installation + '/bin/Castalia'
-        self.cwd = self.castalia_installation + '/Simulations/' + simulation + '/'
+        self.cwd = os.getcwd()
         self.configuration = configuration
         self.input_file = input_file
 
         if os.path.exists(self.binary) == False:
             raise Exception("The castalia binary could not be found at path" + self.binary)
 
+        self.log_file_path = self.cwd + '/' + self.configuration + '-Log.txt'
+
     def run(self):
         environment = dict(os.environ)
-        logfile_path = self.cwd + '_' + self.configuration + '-Log.txt'
 
-        with open(logfile_path, 'w') as logfile:
-            call([self.binary, "-i", self.input_file, "-c", self.configuration], env=environment, cwd=self.cwd, stdout=logfile, stderr=logfile)
+        if self.binary.endswith("Castalia"):
+            with open(self.log_file_path, 'w') as logfile:
+                call([self.binary, "-i", self.input_file, "-c", self.configuration], env=environment, cwd=self.cwd, stdout=logfile, stderr=logfile)
+        else:
+            with open(self.log_file_path, 'w') as logfile:
+                call([self.binary, "-i", self.input_file, "-s", self.configuration, "-o", "2"], env=environment, cwd=self.cwd, stdout=logfile, stderr=logfile)
+
 
 
 class CastaliaResultParser:
@@ -286,14 +293,33 @@ class CastaliaResultParser:
 
 
 def main():
-     castalia = Castalia("802154_interference", "GTS", "omnetpp.ini")
-     castalia.run()
-#    parser = CastaliaResultParser()
-    
-#    parser.read_multiple_columns("application.txt")
-#    parser.plot_histogram()
-#    parser.nodes = []
-#    parser.results = {}
+     parser = argparse.ArgumentParser(description='cthulhu - a script for running and evaluating castalia simulations')
+     parser.add_argument('-r', '--run', dest='run', default=False, const=True, action='store_const', help='run simulations')
+     parser.add_argument('-c', dest='configuration', type=str, default="", action='store', help='a castalia configuarion to run')
+     parser.add_argument('-i', dest='omnetpp_ini', type=str, default="omnetpp.ini", action='store', help='omnetpp.ini file which should be considered')
+     parser.add_argument('-p', '--plot', dest='plot', default=False, const=True, action='store_const', help='plot simulation results')
+
+     if len(sys.argv) == 1:
+         parser.print_help()
+         sys.exit(1)
+
+     arguments = parser.parse_args()
+
+     if arguments.run == True:
+         castalia = Castalia(arguments.configuration, arguments.omnetpp_ini)
+         castalia.run()
+
+     if arguments.plot == True:
+         castalia = Castalia("application level", arguments.omnetpp_ini)
+         castalia.binary += "Results"
+         castalia.log_file_path = os.getcwd() + "/application.txt"
+         castalia.run()
+         
+         results = CastaliaResultParser()
+         results.read_multiple_columns("application.txt")
+         results.plot_histogram()
+         results.nodes = []
+         results.results = {}
 
 #    parser.read_multiple_columns("latency.txt")
 #    parser.plot("Average Latency", "average_latency", "rate", "latency")
