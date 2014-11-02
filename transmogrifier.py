@@ -1,6 +1,8 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.2
 
 import re
+import sys
+import argparse
 import subprocess
 
 class LibAraLogFileParser:
@@ -8,13 +10,13 @@ class LibAraLogFileParser:
     self.nodes = { "ff:ff:ff:ff:ff:ff" : "broadcast" }
     self.binary = '/usr/local/bin/node'
 
-  def transform(self, filename):
+  def transform(self, input, output):
     pattern = '([a-fA-F0-9]{2}[:]?){6}'
     regular_expression = re.compile(pattern)
 
-    with open(filename, "r") as file:
-      with open(filename + '_analysis', "w") as output: 
-        for line in file:
+    with open(input, "r") as input_file:
+      with open(output, "w") as output_file: 
+        for line in input_file:
           match = regular_expression.finditer(line)
 
           if match:
@@ -24,7 +26,7 @@ class LibAraLogFileParser:
 #              line = line.replace(line[mac.start() : mac.end()], hostname, 1)
       #      print(line[mac.start() : mac.end()])
 
-          output.write(line)
+          output_file.write(line)
 
   def _get_node(self, mac):
     if mac not in self.nodes:
@@ -52,8 +54,18 @@ class LibAraLogFileParser:
       return pipe.communicate()[0].decode('utf-8')
 
 def main():
-  parser = LibAraLogFileParser()
-  parser.transform("/home/mfrey/testbed/experiments/log/grid10x10_a0.log")
+  parser = argparse.ArgumentParser(description="transmogrifier - a script for transforming libARA (testbed) logs")
+  parser.add_argument('-i', '--input', dest='input', default=False, const=True, action='store_const', help='input file to be transformed')
+  parser.add_argument('-o', '--output', dest='output', default=False, const=True, action='store_const', help='output file for transformation')
+
+  if len(sys.argv) == 1:
+    parser.print_help()
+    sys.exit(1)
+
+  arguments = parser.parse_args()
+
+  log = LibAraLogFileParser()
+  log.transform()
 
 if __name__ == "__main__":
   main()
