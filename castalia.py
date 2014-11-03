@@ -47,6 +47,7 @@ class CastaliaResultParser:
     def __init__(self):
         self.results = {} 
         self.nodes = [] 
+        self.files = []
 
     def _parse_line(self, line):
         # let's split the line by '|'
@@ -102,6 +103,7 @@ class CastaliaResultParser:
                     figure, axis = plt.subplots(1)
                     plt.hist(hist_data, bins, color='#003366')
                     plt.title(title)
+                    self.files.append(current_filename)
                     figure.savefig(current_filename)
                     plt.close()
 
@@ -192,6 +194,7 @@ class CastaliaResultParser:
                 axis.set_ylabel(ylabel)
                 axis.grid()
                 figure.savefig(current_filename)
+                self.files.append(current_filename)
                 plt.close()
                 print("\n")
 
@@ -247,6 +250,7 @@ class CastaliaResultParser:
         axis.set_ylabel(ylabel)
         plt.grid()
         plt.savefig(filename)
+        self.files.append(filename)
 
     def generate_line_plot_ext(self, filename, title, xlist, mu, sigma, xlabel, ylabel): 
         figure, axis = plt.subplots(1)
@@ -257,6 +261,7 @@ class CastaliaResultParser:
         axis.set_ylabel(ylabel)
         axis.grid()
         figure.savefig(filename)
+        self.files.append(filename)
 
     def write_result_file(self, pattern, input_file, output_file):
         castalia = Castalia(pattern, input_file)
@@ -288,6 +293,7 @@ class CastaliaResultParser:
         axis.grid(axis="y")
 
         plt.savefig(filename)
+        self.files.append(filename)
         plt.close()
 
     def prepare_line_plot(self, filename, title, xlabel, ylabel, data):
@@ -301,6 +307,49 @@ class CastaliaResultParser:
             std.append(float(np.std(data[key])))
 
         self.generate_line_plot(filename, title, xlist, mean, std, xlabel, ylabel) 
+
+class ReportGenerator:
+    def __init__(self):
+        self.scenarios = {} 
+
+    def _get_header(self):
+        header =  '<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
+        header += '<html xmlns="http://www.w3.org/1999/xhtml">'
+        header += '  <head>'
+        header += '    <title>Results</title>'
+        header += '    <link rel="stylesheet" href="style.css" type="text/css">'
+        header += '  </head>'
+        header += '  <body>'
+        return header
+
+    def _get_footer(self):
+        footer = '  </body>'
+        footer += '</html>'
+        return footer
+
+    def write(self, filename):
+        with open(filename, "w") as output:
+          output.write(self._get_header())
+
+          for scenario in self.scenarios:
+             output.write(self._get_scenario(scenario))
+
+          output.write(self._get_footer())
+
+    def _get_scenario(self, scenario):
+        result = '<h3>' + scenario + '</h3>'
+        counter = 0
+
+        for entry in self.scenarios[scenario]:
+           result += '<a href="' + entry +'"><img src="' + entry + '"width=250 height=250></a>'
+
+           if counter < 5:
+               counter += 1
+           else:
+               counter = 0
+               result += '</br></br>'
+
+        return result
 
 
 def main():
@@ -341,6 +390,10 @@ def main():
          results.write_result_file("Packet breakdown", arguments.omnetpp_ini, "breakdown.txt")
          results.read_breakdown_packets("breakdown.txt")
          results.plot_breakdown_packets()
+
+         report = ReportGenerator()
+         report.scenarios['Test'] = results.files
+         report.write('test.html')
 
 if __name__ == "__main__":
     main()
