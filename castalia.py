@@ -140,7 +140,7 @@ class CastaliaResultParser:
                 for rate in sorted(data[payload][node],key=int):
                     rates.append(float(rate))
                     failed.append(data[payload][node][rate][0])
-                    success.append(data[payload][node][rate][1])
+                    success.append(data[payload][node][rate][3])
 
                 sys.stdout.write('.')
                 title = "Packet Breakdown (#Nodes: " + node + " Payload: " + payload + " Bytes)" 
@@ -272,14 +272,17 @@ class CastaliaResultParser:
     def generate_bar_plot(self, filename, title, xdata, ydata, xlabel, ylabel, labels): 
         figure, axis = plt.subplots()
 
-        index = np.arange(xdata[-1])
-        width = 0.5
+        index = np.array(xdata)
+        width = 1.0
 
         bar_widths = -1
 
         if bar_widths > 0:
             axis.bar(index, ydata, bar_widths)
         else:
+            print len(index)
+            print len(ydata[1])
+            print len(ydata[0])
             axis.bar(index, ydata[1], width, color="#990000")
             axis.bar(index+width, ydata[0], width, color="#003366")
 
