@@ -56,7 +56,6 @@ class LibAraLogFileParser:
   def _query_mac(self, mac):
       pipe = subprocess.Popen([self.binary, 'list', '-m', mac], stdout=subprocess.PIPE,
           stderr=subprocess.PIPE) 
-      #return pipe.communicate()[0].strip('\n')
       return pipe.communicate()[0].decode('utf-8')
 
 def main():
@@ -70,8 +69,12 @@ def main():
 
   arguments = parser.parse_args()
 
-  log = LibAraLogFileParser()
-  log.transform(arguments.input, arguments.output)
+  if arguments.input != '' or arguments.output != '':
+    log = LibAraLogFileParser()
+    log.transform(arguments.input, arguments.output)
+  else:
+    parser.print_help()
+    sys.exit(1)
 
 if __name__ == "__main__":
   main()
