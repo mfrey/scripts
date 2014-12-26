@@ -2,6 +2,7 @@
 
 import os
 import re
+import sys
 import time
 import pprint
 import argparse
@@ -20,8 +21,8 @@ class Tumblr:
         if identifier:
             url = "http://%s.tumblr.com/api/read/json?id=%s" % (self.name, identifier)
             response = urlopen(url)
-            page = response.read()
-            match = re.match("^.*?({.*}).*$", page,re.DOTALL | re.MULTILINE )
+            page = response.read().decode()
+            match = re.match("^.*?({.*}).*$", page, re.DOTALL | re.MULTILINE )
             results = simplejson.loads(match.group(1))
 
             if len(results['posts']) == 0:
@@ -33,7 +34,7 @@ class Tumblr:
         try:
            request = Request('http://' + self.name + '.tumblr.com/api/read/json')
            response = urlopen(request)
-           page = response.read()
+           page = response.read().decode()
            match = re.match("^.*?({.*}).*$", page, re.DOTALL | re.MULTILINE )
            results = simplejson.loads(match.group(1))
            return results['posts-total']
@@ -48,9 +49,13 @@ class Tumblr:
     def download(self):
         posts = self.read()
         for post in posts:
-            # TODO: add support for multi photo posts (check json api)
             if post['type'] == 'photo':
-                self._download(post)
+		# if a post contains multiple posts, the photos array is filled up with posts (list of dicts)
+                if len(post['photos']) > 0:
+                    for photo in post['photos']:
+                        self._download(photo)
+                else:
+                    self._download(post)
 
     def _download(self, post):
         savepath = self.location + '/' + os.path.basename(post['photo-url-1280'])
@@ -67,6 +72,9 @@ class Tumblr:
         except ValueError:
             print("")
 
+    def __str__(self):
+        return self.name + ".tumblr.com"
+	
 
 class TumblrIterator:
     def __init__(self, name, start, max, type):
@@ -88,8 +96,7 @@ class TumblrIterator:
             if self.type:
                 url += "&type=" + self.type
             response = urlopen(url)
-            page = response.read()
-
+            page = response.read().decode()
             match = re.match("^.*?({.*}).*$", page,re.DOTALL | re.MULTILINE | re.UNICODE)
             self.results = simplejson.loads(match.group(1))
 
@@ -102,7 +109,24 @@ class TumblrIterator:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='todo')
+    parser = argparse.ArgumentParser(description='a tumblr download script')
+    parser.add_argument('-i', '--id', dest='identifier', type=str, default="", action='store', help='a tumblr to fetch')
+    parser.add_argument('-v', dest='verbose', default=False, const=True, action='store_const', help='enable debug output')
+    parser.add_argument('-o', '--output', dest='output', type=str, default="/tmp", action='store', help='an output directory')
+
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    arguments = parser.parse_args()
+
+    if arguments.identifier != "":
+        tumblr = Tumblr(arguments.identifier, arguments.output)
+        tumblr.download()
+
+        if arguments.verbose:
+            print(tumblr)
 
 if __name__ == "__main__":
     main()
