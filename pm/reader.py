@@ -18,14 +18,19 @@ class Reader:
 
     def add_entry(self, line):
         if line[4] != "E1":
+            month = line[0].split("-")[1]
             cost_unit = line[4]
             hours = float(line[-1].replace(",", "."))
 
-            if "Gesamt" not in cost_unit:
-                 if cost_unit not in self.project.keys():
-                     self.project[cost_unit] = []
+            if month not in self.project.keys():
+                self.project[month] = {}
 
-                 self.project[cost_unit].append(hours)
+
+            if "Gesamt" not in cost_unit:
+                 if cost_unit not in self.project[month].keys():
+                     self.project[month][cost_unit] = []
+
+                 self.project[month][cost_unit].append(hours)
                             
 
 def main():
