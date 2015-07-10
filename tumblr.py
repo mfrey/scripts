@@ -73,7 +73,7 @@ class Tumblr:
             print("")
 
     def __str__(self):
-        return self.name + ".tumblr.com"
+        return self.name + ".tumblr.com" + " - " + str(get_number_of_posts()) + " posts"
 	
 
 class TumblrIterator:
