@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
+import xlsxwriter
 
 class Reader:
     def __init__(self):
@@ -25,13 +26,22 @@ class Reader:
             if month not in self.project.keys():
                 self.project[month] = {}
 
-
             if "Gesamt" not in cost_unit:
                  if cost_unit not in self.project[month].keys():
                      self.project[month][cost_unit] = []
 
                  self.project[month][cost_unit].append(hours)
-                            
+
+
+class Statistics:
+    def write(self, data, file_name):
+        workbook = xlsxwriter.Workbook(file_name)
+        for month in data.keys():
+            for project in data[month]:
+                costs = data[month][project]
+
+        workbook.close()
+
 
 def main():
     reader = Reader()
