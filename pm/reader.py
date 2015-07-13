@@ -3,6 +3,8 @@
 import csv
 import xlsxwriter
 
+from xlsxwriter.utility import xl_rowcol_to_cell
+
 class Reader:
     def __init__(self):
         self.project = {}
@@ -23,22 +25,38 @@ class Reader:
             cost_unit = line[4]
             hours = float(line[-1].replace(",", "."))
 
-            if month not in self.project.keys():
-                self.project[month] = {}
-
             if "Gesamt" not in cost_unit:
-                 if cost_unit not in self.project[month].keys():
-                     self.project[month][cost_unit] = []
+                if cost_unit not in self.project.keys():
+                    self.project[cost_unit] = {}
 
-                 self.project[month][cost_unit].append(hours)
+                if month not in self.project[cost_unit].keys():
+                    self.project[cost_unit][month]= []
+
+                self.project[cost_unit][month].append(hours)
 
 
 class Statistics:
     def write(self, data, file_name):
         workbook = xlsxwriter.Workbook(file_name)
-        for month in data.keys():
-            for project in data[month]:
-                costs = data[month][project]
+        worksheet = workbook.add_worksheet()
+
+        row = 0
+        col = 0
+        for cost_unit in sorted(data.keys()):
+            worksheet.write(row, 0, cost_unit)
+
+            for month in sorted(data[cost_unit].keys()):
+                col += 1
+                costs = data[cost_unit][month]
+                worksheet.write(row, col, sum(costs))
+
+            # generate statistics
+            start = xl_rowcol_to_cell(row,1)
+            stop = xl_rowcol_to_cell(row,col)
+            worksheet.write(0, col+1, '=SUM('+start+":"+stop+")")
+	    # new cost unit and hence a new row
+            row += 1
+            col = 1
 
         workbook.close()
 
@@ -47,6 +65,9 @@ def main():
     reader = Reader()
     reader.read("data.csv")
     print(reader.project)
+    stats = Statistics()
+
+    stats.write(reader.project, "test.xslx")
 
 
 if __name__ == "__main__":
